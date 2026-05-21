@@ -1,0 +1,9 @@
+build/bin
+node_modules
+frontend/dist
+
+# Compiled binaries / test artifacts (built via `wails build` into build/bin)
+/kiskeya
+/kiskeya.exe
+*.test
+*.out
