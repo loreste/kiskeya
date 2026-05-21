@@ -65,6 +65,11 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
+      - name: Install NSIS (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: choco install nsis -y
+
       - name: Prepare Windows Installer Resources
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -82,11 +87,17 @@ jobs:
           if [ "${{ matrix.platform }}" = "darwin" ]; then
             wails build -platform darwin/universal
           elif [ "${{ matrix.platform }}" = "windows" ]; then
+            export PATH="$PATH:/c/Program Files (x86)/NSIS"
             wails build -platform windows/amd64 -nsis
           else
             # webkit2_41 tag is required for webkit2gtk 4.1 on Ubuntu 24.04+
             wails build -platform linux/amd64 -tags webkit2_41
           fi
+
+      - name: List build output
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: ls -la build/bin/
 
       - name: Create DMG Installer (macOS)
         if: matrix.platform == 'darwin'
@@ -170,9 +181,11 @@ jobs:
         run: |
           mkdir -p dist
           cp release-assets/Kiskeya-macOS/Kiskeya-Installer.dmg dist/Kiskeya-${{ steps.version.outputs.version }}-macOS.dmg
-          cp release-assets/Kiskeya-Windows/kiskeya-amd64-installer.exe dist/Kiskeya-${{ steps.version.outputs.version }}-Windows-amd64-installer.exe
+          # The NSIS installer may be named kiskeya-amd64-installer.exe
+          cp release-assets/Kiskeya-Windows/*installer*.exe dist/Kiskeya-${{ steps.version.outputs.version }}-Windows-amd64-installer.exe
           cp release-assets/Kiskeya-Linux-deb/*.deb dist/
           cp release-assets/Kiskeya-Linux-rpm/*.rpm dist/
+          ls -la dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
