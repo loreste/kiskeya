@@ -1,0 +1,30 @@
+name: kiskeya
+arch: amd64
+platform: linux
+version: 1.0.0
+maintainer: Kiskeya Team <info@kiskeya.com>
+description: Kiskeya Desktop SIP Softphone
+vendor: Kiskeya
+homepage: https://github.com/loreste/kiskeya
+license: MIT
+section: utils
+priority: optional
+
+depends:
+  - libgtk-3-0
+  - libasound2
+
+contents:
+  - src: build/bin/kiskeya
+    dst: /usr/bin/kiskeya
+    file_info:
+      mode: 0755
+
+  - src: build/appicon.png
+    dst: /usr/share/icons/hicolor/512x512/apps/kiskeya.png
+
+  - src: build/linux/kiskeya.desktop
+    dst: /usr/share/applications/kiskeya.desktop
+
+rpm:
+  group: Applications/Communications

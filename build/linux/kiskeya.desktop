@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Kiskeya
+Comment=Kiskeya SIP Softphone
+Exec=/usr/bin/kiskeya
+Icon=kiskeya
+Type=Application
+Terminal=false
+Categories=Network;Telephony;

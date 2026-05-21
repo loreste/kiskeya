@@ -104,9 +104,24 @@ jobs:
           name: Kiskeya-Windows
           path: build/bin/kiskeya-amd64-installer.exe
 
-      - name: Upload Artifacts (Linux)
+      - name: Build Linux Packages (deb + rpm)
+        if: matrix.platform == 'linux'
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          export PATH=$PATH:$(go env GOPATH)/bin
+          nfpm package --packager deb --target build/bin/
+          nfpm package --packager rpm --target build/bin/
+
+      - name: Upload Artifacts (Linux deb)
         if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
         with:
-          name: Kiskeya-Linux
-          path: build/bin/kiskeya
+          name: Kiskeya-Linux-deb
+          path: build/bin/*.deb
+
+      - name: Upload Artifacts (Linux rpm)
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kiskeya-Linux-rpm
+          path: build/bin/*.rpm
