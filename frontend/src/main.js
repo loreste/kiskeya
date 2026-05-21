@@ -672,6 +672,18 @@ btnMute.addEventListener('click', () => {
 
 // --- Contacts tab logic ---
 const contactsListContainer = document.getElementById('contacts-list-container');
+
+// Escape untrusted strings before inserting into innerHTML. Caller display names
+// and numbers come from remote SIP headers (From), so they must never be treated
+// as markup — otherwise a crafted caller could inject script (stored XSS).
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 const contactSearch = document.getElementById('contact-search');
 
 let allContacts = [];
@@ -696,21 +708,26 @@ function renderContactsList(contacts) {
 
   // NOTE: Wails serializes Go structs using their JSON tags, so fields arrive
   // lowercase (name/sipAddress/id) — not the Go PascalCase names.
-  contactsListContainer.innerHTML = contacts.map(c => `
+  contactsListContainer.innerHTML = contacts.map(c => {
+    const name = escapeHtml(c.name || '');
+    const sip = escapeHtml(c.sipAddress || '');
+    const id = escapeHtml(c.id || '');
+    const initial = escapeHtml((c.name || '?').charAt(0).toUpperCase());
+    return `
     <div class="list-item">
       <div class="list-item-main">
-        <div class="list-item-avatar">${(c.name || '?').charAt(0).toUpperCase()}</div>
+        <div class="list-item-avatar">${initial}</div>
         <div class="list-item-details">
-          <div class="list-item-title">${c.name || ''}</div>
-          <div class="list-item-subtitle">${c.sipAddress || ''}</div>
+          <div class="list-item-title">${name}</div>
+          <div class="list-item-subtitle">${sip}</div>
         </div>
       </div>
       <div class="list-item-actions">
-        <button type="button" class="icon-action-btn call-icon" title="Call" aria-label="Call ${c.name || ''}" onclick="window.speedDial('${c.sipAddress}')">📞</button>
-        <button type="button" class="icon-action-btn delete-icon" title="Delete" aria-label="Delete ${c.name || ''}" data-confirm="0" onclick="window.deleteContact('${c.id}', this)">🗑️</button>
+        <button type="button" class="icon-action-btn call-icon" title="Call" aria-label="Call ${name}" data-sip="${sip}">📞</button>
+        <button type="button" class="icon-action-btn delete-icon" title="Delete" aria-label="Delete ${name}" data-confirm="0" data-id="${id}">🗑️</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 contactSearch.addEventListener('input', (e) => {
@@ -793,6 +810,20 @@ window.deleteContact = function (id, btn) {
 // --- Call History Tab Logic ---
 const historyListContainer = document.getElementById('history-list-container');
 
+// Event delegation for call/delete actions. The list HTML carries the (escaped)
+// SIP address / id in data-* attributes instead of inline JS, so untrusted caller
+// data can never execute. dataset returns the browser-decoded original value.
+contactsListContainer.addEventListener('click', (e) => {
+  const callBtn = e.target.closest('.call-icon');
+  if (callBtn && callBtn.dataset.sip != null) { window.speedDial(callBtn.dataset.sip); return; }
+  const delBtn = e.target.closest('.delete-icon');
+  if (delBtn && delBtn.dataset.id != null) { window.deleteContact(delBtn.dataset.id, delBtn); }
+});
+historyListContainer.addEventListener('click', (e) => {
+  const callBtn = e.target.closest('.call-icon');
+  if (callBtn && callBtn.dataset.sip != null) { window.speedDial(callBtn.dataset.sip); }
+});
+
 function loadCallHistory() {
   App.GetCallHistory().then(logs => {
     renderCallHistory(logs);
@@ -811,27 +842,29 @@ function renderCallHistory(logs) {
   }
 
   historyListContainer.innerHTML = logs.map(l => {
-    const date = new Date(l.timestamp).toLocaleString();
-    const duration = formatCallTime(l.durationSec);
+    const date = escapeHtml(new Date(l.timestamp).toLocaleString());
+    const duration = escapeHtml(formatCallTime(l.durationSec));
     const directionClass = l.direction === 'incoming' ? 'incoming' : 'outgoing';
     const statusClass = l.status === 'answered' ? 'answered' : (l.status === 'missed' ? 'missed' : 'failed');
-    const statusText = l.status.charAt(0).toUpperCase() + l.status.slice(1);
+    const statusText = escapeHtml((l.status || '').charAt(0).toUpperCase() + (l.status || '').slice(1));
+    // l.number originates from the remote SIP From header — must be escaped.
+    const number = escapeHtml(l.number || '');
 
     return `
       <div class="list-item">
         <div class="list-item-main">
           <div class="list-item-avatar">${l.direction === 'incoming' ? '📥' : '📤'}</div>
           <div class="list-item-details">
-            <div class="list-item-title">${l.number}</div>
+            <div class="list-item-title">${number}</div>
             <div class="list-item-subtitle">
-              <span class="direction-badge ${directionClass}">${l.direction}</span>
+              <span class="direction-badge ${directionClass}">${escapeHtml(l.direction || '')}</span>
               <span class="call-status-label ${statusClass}">${statusText} (${duration})</span>
               <span class="history-date">${date}</span>
             </div>
           </div>
         </div>
         <div class="list-item-actions">
-          <button type="button" class="icon-action-btn call-icon" title="Call" aria-label="Call ${l.number}" onclick="window.speedDial('${l.number}')">📞</button>
+          <button type="button" class="icon-action-btn call-icon" title="Call" aria-label="Call ${number}" data-sip="${number}">📞</button>
         </div>
       </div>
     `;
@@ -872,10 +905,9 @@ function loadAudioDevices() {
       return;
     }
 
-    // Populate mic select
-    selectMic.innerHTML = devices.mics.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-    // Populate speaker select
-    selectSpeaker.innerHTML = devices.speakers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    // Populate mic/speaker selects (device names are OS-provided; escape anyway).
+    selectMic.innerHTML = devices.mics.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join('');
+    selectSpeaker.innerHTML = devices.speakers.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join('');
 
     // Restore selected values from localStorage if saved
     const activeMic = localStorage.getItem('kiskeya_mic') || 'default';
