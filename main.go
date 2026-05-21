@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -10,6 +11,12 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed VERSION
+var versionFile string
+
+// AppVersion is the embedded version from the VERSION file.
+var AppVersion = strings.TrimSpace(versionFile)
 
 func main() {
 	// Create an instance of the app structure

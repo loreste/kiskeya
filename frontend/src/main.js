@@ -23,24 +23,7 @@ appContainer.innerHTML = `
     <div class="splash-content">
       <div class="splash-logo-container">
         <div class="splash-logo">
-          <svg class="dynamic-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="logoGradSplash" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="var(--accent-start)" />
-                <stop offset="50%" stop-color="var(--accent-mid)" />
-                <stop offset="100%" stop-color="var(--accent-end)" />
-              </linearGradient>
-            </defs>
-            <path class="logo-phone-spine" d="M30,20 C30,20 22,35 22,50 C22,65 30,80 30,80 C32,83 28,87 25,87 C20,80 15,65 15,50 C15,35 20,20 25,13 C28,13 32,17 30,20 Z" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-1" x="42" y="45" width="6" height="15" rx="3" transform="rotate(-45 42 45)" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-2" x="52" y="35" width="6" height="22" rx="3" transform="rotate(-45 52 35)" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-3" x="62" y="25" width="6" height="30" rx="3" transform="rotate(-45 62 25)" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-4" x="72" y="15" width="6" height="38" rx="3" transform="rotate(-45 72 15)" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-5" x="42" y="55" width="6" height="15" rx="3" transform="rotate(45 42 55)" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-6" x="52" y="65" width="6" height="22" rx="3" transform="rotate(45 52 65)" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-7" x="62" y="75" width="6" height="30" rx="3" transform="rotate(45 62 75)" fill="url(#logoGradSplash)"/>
-            <rect class="wave-bar bar-8" x="72" y="85" width="6" height="38" rx="3" transform="rotate(45 72 85)" fill="url(#logoGradSplash)"/>
-          </svg>
+          <img src="./src/assets/images/logo-universal.png" alt="Kiskeya" class="splash-logo-img" />
         </div>
         <div class="splash-ring"></div>
         <div class="splash-ring-2"></div>
@@ -60,24 +43,7 @@ appContainer.innerHTML = `
       <div>
         <div class="logo-section">
           <div class="logo-icon">
-            <svg class="dynamic-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="logoGradSidebar" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="var(--accent-start)" />
-                  <stop offset="50%" stop-color="var(--accent-mid)" />
-                  <stop offset="100%" stop-color="var(--accent-end)" />
-                </linearGradient>
-              </defs>
-              <path class="logo-phone-spine" d="M30,20 C30,20 22,35 22,50 C22,65 30,80 30,80 C32,83 28,87 25,87 C20,80 15,65 15,50 C15,35 20,20 25,13 C28,13 32,17 30,20 Z" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-1" x="42" y="45" width="6" height="15" rx="3" transform="rotate(-45 42 45)" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-2" x="52" y="35" width="6" height="22" rx="3" transform="rotate(-45 52 35)" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-3" x="62" y="25" width="6" height="30" rx="3" transform="rotate(-45 62 25)" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-4" x="72" y="15" width="6" height="38" rx="3" transform="rotate(-45 72 15)" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-5" x="42" y="55" width="6" height="15" rx="3" transform="rotate(45 42 55)" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-6" x="52" y="65" width="6" height="22" rx="3" transform="rotate(45 52 65)" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-7" x="62" y="75" width="6" height="30" rx="3" transform="rotate(45 62 75)" fill="url(#logoGradSidebar)"/>
-              <rect class="wave-bar bar-8" x="72" y="85" width="6" height="38" rx="3" transform="rotate(45 72 85)" fill="url(#logoGradSidebar)"/>
-            </svg>
+            <img src="./src/assets/images/logo-universal.png" alt="Kiskeya" class="sidebar-logo-img" />
           </div>
           <div class="logo-text">
             <h1>Kiskeya</h1>
@@ -105,7 +71,7 @@ appContainer.innerHTML = `
         </div>
       </div>
       <div class="sidebar-footer">
-        Kiskeya v1.0.0
+        Kiskeya <span id="app-version"></span>
       </div>
     </div>
 
@@ -1273,6 +1239,12 @@ function applyTheme(themeName) {
 
 // --- Initial Setup on Mount ---
 document.addEventListener('DOMContentLoaded', () => {
+  // Display app version from Go backend
+  App.GetVersion().then(v => {
+    const el = document.getElementById('app-version');
+    if (el) el.innerText = 'v' + v;
+  });
+
   loadAccountSettings();
   loadContacts();
   loadCallHistory();

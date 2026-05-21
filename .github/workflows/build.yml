@@ -30,6 +30,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Read VERSION
+        id: version
+        shell: bash
+        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -60,11 +65,20 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
+      - name: Prepare Windows Installer Resources
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $resourceDir = "build\windows\installer\resources"
+          New-Item -ItemType Directory -Force -Path $resourceDir
+          Copy-Item LICENSE "$resourceDir\LICENSE.txt"
+          # Create a 164x314 BMP welcome banner from the app icon using magick
+          magick build\appicon.png -resize 164x164 -gravity center -background "#1c2127" -extent 164x314 BMP3:"$resourceDir\welcome.bmp"
+
       - name: Build Application
         shell: bash
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          # Run wails build for specific platform
           if [ "${{ matrix.platform }}" = "darwin" ]; then
             wails build -platform darwin/universal
           elif [ "${{ matrix.platform }}" = "windows" ]; then
@@ -78,6 +92,8 @@ jobs:
         if: matrix.platform == 'darwin'
         run: |
           brew install create-dmg
+          # create-dmg returns exit code 2 when it can't set a custom icon but
+          # the DMG was still created successfully — treat that as success.
           create-dmg \
             --volname "Kiskeya Installer" \
             --volicon "build/appicon.png" \
@@ -87,8 +103,10 @@ jobs:
             --icon "kiskeya.app" 150 185 \
             --hide-extension "kiskeya.app" \
             --app-drop-link 450 185 \
+            --eula LICENSE \
             "build/bin/Kiskeya-Installer.dmg" \
-            "build/bin/kiskeya.app"
+            "build/bin/kiskeya.app" \
+          || test $? -eq 2
 
       - name: Upload Artifacts (macOS)
         if: matrix.platform == 'darwin'
@@ -109,6 +127,7 @@ jobs:
         run: |
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
           export PATH=$PATH:$(go env GOPATH)/bin
+          export VERSION=${{ steps.version.outputs.version }}
           nfpm package --packager deb --target build/bin/
           nfpm package --packager rpm --target build/bin/
 
@@ -125,3 +144,50 @@ jobs:
         with:
           name: Kiskeya-Linux-rpm
           path: build/bin/*.rpm
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Read VERSION
+        id: version
+        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Prepare Release Files
+        run: |
+          mkdir -p dist
+          cp release-assets/Kiskeya-macOS/Kiskeya-Installer.dmg dist/Kiskeya-${{ steps.version.outputs.version }}-macOS.dmg
+          cp release-assets/Kiskeya-Windows/kiskeya-amd64-installer.exe dist/Kiskeya-${{ steps.version.outputs.version }}-Windows-amd64-installer.exe
+          cp release-assets/Kiskeya-Linux-deb/*.deb dist/
+          cp release-assets/Kiskeya-Linux-rpm/*.rpm dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Kiskeya v${{ steps.version.outputs.version }}
+          body: |
+            ## Kiskeya v${{ steps.version.outputs.version }}
+
+            ### Downloads
+            - **macOS**: `Kiskeya-${{ steps.version.outputs.version }}-macOS.dmg` (Universal — Intel + Apple Silicon)
+            - **Windows**: `Kiskeya-${{ steps.version.outputs.version }}-Windows-amd64-installer.exe`
+            - **Debian/Ubuntu**: `.deb` package — install with `sudo dpkg -i <file>.deb`
+            - **RHEL/Fedora**: `.rpm` package — install with `sudo dnf install <file>.rpm`
+          files: dist/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -1,7 +1,7 @@
 name: kiskeya
 arch: amd64
 platform: linux
-version: 1.0.0
+version: ${VERSION}
 maintainer: Kiskeya Team <info@kiskeya.com>
 description: Kiskeya Desktop SIP Softphone
 vendor: Kiskeya
