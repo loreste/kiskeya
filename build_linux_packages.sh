@@ -21,28 +21,42 @@ fi
 
 echo "--> Detected OS: $NAME ($OS_ID)"
 
+# WebKit2GTK 4.0 was dropped on newer distros (Ubuntu 24.04+, recent Fedora) in
+# favour of 4.1. Detect which is available and set the matching Wails build tag.
+WAILS_TAGS=""
+
 # 2. Install dependencies based on Package Manager
 if [[ "$OS_ID" == "ubuntu" || "$OS_ID" == "debian" || "$OS_LIKE" == *"debian"* ]]; then
     echo "--> Installing dependencies for Ubuntu/Debian..."
     sudo apt-get update
+    if apt-cache show libwebkit2gtk-4.1-dev >/dev/null 2>&1; then
+        WEBKIT_PKG="libwebkit2gtk-4.1-dev"; WAILS_TAGS="-tags webkit2_41"
+    else
+        WEBKIT_PKG="libwebkit2gtk-4.0-dev"
+    fi
     sudo apt-get install -y \
         golang-go \
         nodejs \
         npm \
         libgtk-3-dev \
-        libwebkit2gtk-4.0-dev \
+        "$WEBKIT_PKG" \
         libasound2-dev \
         pkg-config \
         build-essential \
         dpkg-dev
 elif [[ "$OS_ID" == "fedora" || "$OS_ID" == "rhel" || "$OS_LIKE" == *"rhel"* || "$OS_LIKE" == *"fedora"* ]]; then
     echo "--> Installing dependencies for Fedora/RedHat..."
+    if dnf list webkit2gtk4.1-devel >/dev/null 2>&1; then
+        WEBKIT_PKG="webkit2gtk4.1-devel"; WAILS_TAGS="-tags webkit2_41"
+    else
+        WEBKIT_PKG="webkit2gtk3-devel"
+    fi
     sudo dnf install -y \
         golang \
         nodejs \
         npm \
         gtk3-devel \
-        webkit2gtk3-devel \
+        "$WEBKIT_PKG" \
         alsa-lib-devel \
         gcc \
         gcc-c++ \
@@ -63,11 +77,11 @@ fi
 
 # 4. Install/Update Wails CLI
 echo "--> Installing Wails CLI tool..."
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
 # 5. Build application binary
-echo "--> Compiling Kiskeya production binary..."
-wails build -platform linux/amd64
+echo "--> Compiling Kiskeya production binary (tags: ${WAILS_TAGS:-none})..."
+wails build -platform linux/amd64 $WAILS_TAGS
 
 # 6. Build Packages
 mkdir -p build/bin
